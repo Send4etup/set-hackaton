@@ -1,0 +1,1 @@
+A Telegram Mini App for task management with a Python backend. AI automatically prioritizes tasks, builds a daily schedule, and sends smart reminders to keep users on track.
