@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List
 from models import Task
 
-QWEN_BASE_URL = os.getenv("QWEN_BASE_URL", "http://localhost:8080/v1")
+QWEN_BASE_URL = os.getenv("QWEN_BASE_URL", "http://10.93.26.100:42005/v1")
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "1234567890")
 
 
