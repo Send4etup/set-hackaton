@@ -4,9 +4,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    volumes:
-      - ./backend:/app
+      - QWEN_BASE_URL=http://10.93.26.100:42005/v1
+      - QWEN_API_KEY=1234567890
     restart: unless-stopped
 
   frontend:

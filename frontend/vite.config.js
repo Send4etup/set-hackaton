@@ -6,8 +6,10 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
-      '/tasks': 'http://localhost:8000',
-      '/schedule': 'http://localhost:8000',
-    }
-  }
+      '/api': {
+        target: 'http://localhost:8000',
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })

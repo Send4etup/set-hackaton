@@ -1,31 +1,48 @@
-import { useState, useEffect } from 'react'
-import TaskForm from './components/TaskForm'
-import TaskList from './components/TaskList'
-import Schedule from './components/Schedule'
-import { fetchTasks, fetchLatestSchedule } from './api'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
+import Header from './components/Header'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
+import SchedulePage from './pages/SchedulePage'
+import Settings from './pages/Settings'
+
+function PrivateRoute({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <span className="spinner" style={{ width: 32, height: 32 }} />
+    </div>
+  )
+  return user ? children : <Navigate to="/login" replace />
+}
+
+function AppShell() {
+  const { user } = useAuth()
+  return (
+    <div className="app-shell">
+      {user && <Header />}
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/schedule" element={<PrivateRoute><SchedulePage /></PrivateRoute>} />
+        <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
+  )
+}
 
 export default function App() {
-  const [tasks, setTasks] = useState([])
-  const [schedule, setSchedule] = useState(null)
-
-  useEffect(() => {
-    fetchTasks().then(setTasks).catch(console.error)
-    fetchLatestSchedule().then(setSchedule).catch(console.error)
-  }, [])
-
-  function onCreated(task) {
-    setTasks(ts => [task, ...ts])
-  }
-
   return (
-    <div className="app">
-      <h1>AI Task Scheduler</h1>
-      <TaskForm onCreated={onCreated} />
-      <div className="card">
-        <h2>My Tasks</h2>
-        <TaskList tasks={tasks} setTasks={setTasks} />
-      </div>
-      <Schedule schedule={schedule} setSchedule={setSchedule} />
-    </div>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   )
 }
