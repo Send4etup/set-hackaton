@@ -1,30 +1,49 @@
 Project Idea
-End-user: Telegram users who struggle to organize their daily tasks
-Problem: Difficult to prioritize tasks and know what to focus on each day
-Product idea: A Telegram Mini App where you add tasks and AI builds an optimized daily schedule with reminders.
+
+End-user: People who struggle to organize their daily tasks and priorities.
+
+Problem: Many users have difficulty deciding which tasks to focus on each day and how to structure their time effectively.
+
+Product idea: A web application where users add tasks and an AI system generates an optimized daily schedule with suggested time blocks and reminders.
+
+
 
 Version 1 — Task input + AI schedule
-Core feature: user adds tasks, AI returns a structured plan for the day.
 
-Backend: FastAPI + SQLite, CRUD for tasks, LLM call to generate schedule
-Database: users, tasks (title, deadline, priority, status)
-Client: Telegram Mini App — add tasks, view AI-generated schedule
+Core feature: the user adds tasks and the AI generates a structured plan for the day.
 
-Done when: user adds real tasks, gets a real AI schedule, data stored in DB.
+Backend: FastAPI + SQLite, CRUD operations for tasks, LLM call to generate schedule.
+
+Database: users, tasks (title, deadline, priority, status).
+
+Client: Web application (React) where users can add tasks and view the AI-generated schedule.
+
+Done when: a user can add real tasks, receive an AI-generated schedule, and the data is stored in the database.
+
+
 
 Version 2 — Reminders + Deployment
-Core upgrade: Telegram Bot sends reminders based on the generated schedule.
 
-Backend: add scheduler, reminder logic
-Database: store schedules, track reminder status
-Client: reminder messages in Telegram chat, snooze option
+Core upgrade: the system sends reminders about upcoming tasks and schedule items.
 
-Done when: reminders work, product is deployed Docker, TA feedback addressed.
+Backend: add scheduler and reminder logic.
+
+Database: store generated schedules and reminder states.
+
+Client: reminder notifications inside the web application (or optional email notifications).
+
+Done when: reminders work, the product is deployed using Docker, and TA feedback is addressed.
+
+
 
 Build Order
 
 Data model: users, tasks, schedules
+
 FastAPI backend + LLM integration
-Telegram Mini App frontend
+
+React frontend
+
 Scheduler + reminders
-Docker + deploy
+
+Docker + deployment
