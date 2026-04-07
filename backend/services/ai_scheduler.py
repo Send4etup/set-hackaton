@@ -8,51 +8,11 @@ from models import Task, User
 QWEN_BASE_URL = os.getenv("QWEN_BASE_URL", "http://10.93.26.100:42005/v1")
 QWEN_API_KEY = os.getenv("QWEN_API_KEY", "1234567890")
 
-SYSTEM_PROMPT = """You are a productivity assistant that creates optimized daily schedules.
-You receive a list of tasks with deadlines, priorities, and optional user context.
+SYSTEM_PROMPT = """You are a scheduling assistant. Return ONLY a JSON array, no explanation, no markdown.
 
-Return ONLY valid HTML — no markdown, no code fences, no explanation, nothing else.
-Use exactly this structure:
-
-<div class="ai-schedule">
-  <div class="ai-sched-header">
-    <div class="ai-sched-title">DAY_NAME, MONTH DD, YYYY</div>
-    <div class="ai-sched-subtitle">SUBTITLE (e.g. "Optimized Schedule · Starts at HH:MM")</div>
-  </div>
-  <div class="ai-sched-timeline">
-    <div class="ai-sched-block ai-prio-high" data-task-id="TASK_ID_OR_EMPTY">
-      <div class="ai-sched-time">HH:MM – HH:MM</div>
-      <div class="ai-sched-info">
-        <div class="ai-sched-name">Task Name</div>
-        <div class="ai-sched-desc">Short description of what to do</div>
-      </div>
-      <span class="ai-sched-badge">HIGH</span>
-    </div>
-    <div class="ai-sched-block ai-prio-break" data-task-id="">
-      <div class="ai-sched-time">HH:MM – HH:MM</div>
-      <div class="ai-sched-info">
-        <div class="ai-sched-name">☕ Short Break</div>
-        <div class="ai-sched-desc">Hydrate, stretch, step away from screen</div>
-      </div>
-      <span class="ai-sched-badge">BREAK</span>
-    </div>
-  </div>
-</div>
-
-Priority CSS classes: ai-prio-high, ai-prio-medium, ai-prio-low, ai-prio-break
-Badge text: HIGH, MEDIUM, LOW, BREAK
-
-IMPORTANT: For each real task block, set data-task-id to the task's numeric ID from the input list.
-For break/lunch blocks, set data-task-id="" (empty).
-
-Rules:
-- Be practical and realistic with time blocks
-- Include 1–2 short breaks (10–15 min) and a lunch break if applicable
-- Prioritize by deadline urgency and priority level
-- Account for user's wake/sleep times and work style if provided
-- Output ONLY the HTML block — nothing before or after it
-- Keep it concise: 6–10 time blocks maximum, short descriptions (max 10 words each)
-- Do NOT add comments, explanations, or any text outside the HTML"""
+Each item: {"time":"HH:MM-HH:MM","name":"...","desc":"...","priority":"high|medium|low|break","task_id":123}
+task_id is the numeric ID from the input, or null for breaks.
+6-9 blocks max. Descriptions under 8 words. Output ONLY the JSON array."""
 
 
 def _parse_profile(user: Optional[User]) -> dict:
@@ -122,23 +82,62 @@ def build_task_prompt(
     else:
         lines.append("No active tasks. Generate a general productive day plan.")
 
-    lines += ["", "Generate an optimized daily schedule for the given date as HTML."]
+    lines += ["", "Return a JSON array schedule for this date. 6-9 blocks only."]
     return "\n".join(lines)
 
 
-def _call_ai(messages: list) -> str:
+def _json_to_html(blocks: list, date_str: str) -> str:
+    prio_map = {"high": "ai-prio-high", "medium": "ai-prio-medium", "low": "ai-prio-low", "break": "ai-prio-break"}
+    badge_map = {"high": "HIGH", "medium": "MEDIUM", "low": "LOW", "break": "BREAK"}
+    items_html = ""
+    for b in blocks:
+        prio = b.get("priority", "medium")
+        tid = b.get("task_id") or ""
+        items_html += (
+            f'<div class="ai-sched-block {prio_map.get(prio, "ai-prio-medium")}" data-task-id="{tid}">'
+            f'<div class="ai-sched-time">{b.get("time","")}</div>'
+            f'<div class="ai-sched-info">'
+            f'<div class="ai-sched-name">{b.get("name","")}</div>'
+            f'<div class="ai-sched-desc">{b.get("desc","")}</div>'
+            f'</div>'
+            f'<span class="ai-sched-badge">{badge_map.get(prio, "MEDIUM")}</span>'
+            f'</div>'
+        )
+    return (
+        f'<div class="ai-schedule">'
+        f'<div class="ai-sched-header">'
+        f'<div class="ai-sched-title">{date_str}</div>'
+        f'<div class="ai-sched-subtitle">Optimized Schedule</div>'
+        f'</div>'
+        f'<div class="ai-sched-timeline">{items_html}</div>'
+        f'</div>'
+    )
+
+
+def _call_ai(messages: list, date_str: str = "") -> str:
     client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL, timeout=180.0)
     response = client.chat.completions.create(
         model="coder-model",
         messages=messages,
         max_tokens=900,
     )
-    content = response.choices[0].message.content.strip()
-    # Strip markdown code fences if the model wrapped the HTML anyway
-    if content.startswith("```"):
-        lines = content.split("\n")
-        content = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    return content
+    raw = response.choices[0].message.content.strip()
+
+    # Strip markdown fences
+    if raw.startswith("```"):
+        lines = raw.split("\n")
+        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    # Try to parse JSON and convert to HTML on our side
+    try:
+        # Find JSON array in response
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        blocks = json.loads(raw[start:end])
+        return _json_to_html(blocks, date_str)
+    except Exception:
+        # Fallback: return raw text wrapped in pre
+        return f'<pre class="schedule-content">{raw}</pre>'
 
 
 def generate_schedule(
@@ -149,6 +148,15 @@ def generate_schedule(
     mood: Optional[str] = None,
     user: Optional[User] = None,
 ) -> str:
+    if target_date:
+        try:
+            dt = datetime.strptime(target_date, "%Y-%m-%d")
+            date_str = dt.strftime("%A, %B %d, %Y")
+        except ValueError:
+            date_str = target_date
+    else:
+        date_str = datetime.now().strftime("%A, %B %d, %Y")
+
     prompt = build_task_prompt(
         tasks,
         target_date=target_date,
@@ -160,23 +168,17 @@ def generate_schedule(
     return _call_ai([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
-    ])
+    ], date_str=date_str)
 
 
 def refine_schedule(current_html: str, instruction: str) -> str:
-    """Apply a user's correction/refinement instruction to an existing schedule HTML."""
-    system = (
-        SYSTEM_PROMPT + "\n\n"
-        "You are given an existing schedule HTML and a user instruction to modify it. "
-        "Apply the change and return the complete updated HTML schedule. "
-        "Return ONLY the HTML — nothing else."
-    )
+    """Apply refinement to existing schedule: parse current HTML back, ask AI to adjust JSON."""
+    system = SYSTEM_PROMPT + "\nYou are given a current schedule as JSON and must apply the user's change. Return ONLY the updated JSON array."
     user_msg = (
-        f"Current schedule HTML:\n{current_html}\n\n"
-        f"User instruction: {instruction}\n\n"
-        "Return the updated schedule HTML."
+        f"Current schedule (reconstruct from this HTML if needed): {current_html[:500]}\n\n"
+        f"Instruction: {instruction}\n\nReturn updated JSON array only."
     )
     return _call_ai([
         {"role": "system", "content": system},
         {"role": "user", "content": user_msg},
-    ])
+    ], date_str="")
