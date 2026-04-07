@@ -37,6 +37,7 @@ export const updateTask = (id, data) => request(`/tasks/${id}`, { method: 'PATCH
 export const deleteTask = (id) => request(`/tasks/${id}`, { method: 'DELETE' })
 
 // Schedule
-export const generateSchedule = (date) =>
-  request(`/schedule/generate${date ? `?target_date=${date}` : ''}`, { method: 'POST' })
+export const generateSchedule = (data) =>
+  request('/schedule/generate', { method: 'POST', body: JSON.stringify(data) })
+export const fetchScheduleByDate = (date) => request(`/schedule/by-date/${date}`)
 export const fetchLatestSchedule = () => request('/schedule/latest')

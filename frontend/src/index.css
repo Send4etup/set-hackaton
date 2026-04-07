@@ -371,6 +371,95 @@ select option { background: var(--card); }
   padding: 16px;
 }
 
+/* ─── AI SCHEDULE HTML OUTPUT ────────────────────────── */
+.ai-schedule-render { padding: 4px 0; }
+
+.ai-schedule { display: flex; flex-direction: column; gap: 0; }
+
+.ai-sched-header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-sched-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.ai-sched-subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.ai-sched-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-sched-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  background: var(--surface);
+  transition: border-color var(--transition);
+}
+.ai-sched-block:hover { background: var(--card-hover); }
+
+.ai-sched-time {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 96px;
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-sched-info { flex: 1; min-width: 0; }
+
+.ai-sched-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.ai-sched-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.ai-sched-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.ai-prio-high  { border-left-color: var(--danger); }
+.ai-prio-high .ai-sched-badge { background: var(--danger-bg); color: var(--danger); }
+
+.ai-prio-medium { border-left-color: var(--warning); }
+.ai-prio-medium .ai-sched-badge { background: var(--warning-bg); color: var(--warning); }
+
+.ai-prio-low  { border-left-color: var(--success); }
+.ai-prio-low .ai-sched-badge { background: var(--success-bg); color: var(--success); }
+
+.ai-prio-break { border-left-color: var(--accent); opacity: 0.8; }
+.ai-prio-break .ai-sched-badge { background: rgba(6,182,212,0.12); color: var(--accent); }
+
 .date-picker-bar {
   display: flex;
   align-items: center;

@@ -59,6 +59,13 @@ class TaskOut(BaseModel):
 
 
 # Schedule
+class ScheduleGenerateRequest(BaseModel):
+    target_date: Optional[str] = None
+    user_notes: Optional[str] = None
+    day_type: Optional[str] = None
+    mood: Optional[str] = None
+
+
 class ScheduleOut(BaseModel):
     id: int
     content: str
