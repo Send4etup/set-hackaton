@@ -50,7 +50,9 @@ Rules:
 - Include 1–2 short breaks (10–15 min) and a lunch break if applicable
 - Prioritize by deadline urgency and priority level
 - Account for user's wake/sleep times and work style if provided
-- Output ONLY the HTML block — nothing before or after it"""
+- Output ONLY the HTML block — nothing before or after it
+- Keep it concise: 6–10 time blocks maximum, short descriptions (max 10 words each)
+- Do NOT add comments, explanations, or any text outside the HTML"""
 
 
 def _parse_profile(user: Optional[User]) -> dict:
@@ -125,11 +127,11 @@ def build_task_prompt(
 
 
 def _call_ai(messages: list) -> str:
-    client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL)
+    client = OpenAI(api_key=QWEN_API_KEY, base_url=QWEN_BASE_URL, timeout=180.0)
     response = client.chat.completions.create(
         model="coder-model",
         messages=messages,
-        max_tokens=2048,
+        max_tokens=900,
     )
     content = response.choices[0].message.content.strip()
     # Strip markdown code fences if the model wrapped the HTML anyway
