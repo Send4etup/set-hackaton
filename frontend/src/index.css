@@ -667,8 +667,156 @@ select option { background: var(--card); }
   display: inline-block;
 }
 
+/* ─── ONBOARDING / REGISTER ──────────────────────────── */
+.onboarding-card { max-width: 480px; }
+
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-light);
+  transition: all var(--transition);
+}
+.onboarding-dot.active { background: var(--primary); width: 22px; border-radius: 4px; }
+.onboarding-dot.done { background: var(--success); }
+
+.onboarding-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--primary-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.style-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.style-card {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition);
+  font-family: inherit;
+}
+.style-card:hover { border-color: var(--primary); background: var(--primary-bg); }
+.style-card.selected { border-color: var(--primary); background: var(--primary-bg); box-shadow: 0 0 0 1px var(--primary); }
+.style-card-label { font-weight: 600; font-size: 0.875rem; color: var(--text); }
+.style-card-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+.btn-link:hover { color: var(--text-muted); }
+
+/* ─── DONE TASKS COLLAPSIBLE ─────────────────────────── */
+.done-tasks-section { margin-top: 8px; }
+
+.done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 4px;
+  font-family: inherit;
+  transition: color var(--transition);
+}
+.done-toggle:hover { color: var(--text); }
+.done-toggle-icon { font-size: 0.7rem; transition: transform var(--transition); }
+
+.done-tasks-list {
+  margin-top: 6px;
+  padding-left: 4px;
+}
+
+/* ─── SCHEDULE REFINE BAR ────────────────────────────── */
+.refine-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.refine-input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.refine-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+.refine-input::placeholder { color: var(--text-dim); }
+
+.refine-send { white-space: nowrap; flex-shrink: 0; }
+
+/* ─── SCHEDULE TASK CHECKBOXES (injected into AI HTML) ── */
+.sched-check-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border-light);
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all var(--transition);
+  align-self: center;
+  margin-right: 2px;
+}
+.sched-check-btn:hover { border-color: var(--success); color: var(--success); }
+.sched-check-btn.done { background: var(--success); border-color: var(--success); color: #fff; }
+
+.sched-block-done { opacity: 0.5; }
+.sched-block-done .ai-sched-name { text-decoration: line-through; }
+
 @media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .page-header { flex-direction: column; }
+  .onboarding-card { padding: 24px 20px; }
 }

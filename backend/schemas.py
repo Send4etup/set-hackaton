@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from models import Priority, Status
 
 
@@ -9,6 +9,13 @@ class UserRegister(BaseModel):
     email: str
     password: str
     name: Optional[str] = None
+    # Onboarding profile fields (optional at register, saved as JSON)
+    wake_time: Optional[str] = None       # e.g. "07:00"
+    sleep_time: Optional[str] = None      # e.g. "23:00"
+    work_style: Optional[str] = None      # e.g. "deep focus blocks"
+    goal: Optional[str] = None            # e.g. "launch a startup"
+    avoid: Optional[str] = None           # e.g. "social media"
+    extra: Optional[str] = None           # free-form notes
 
 
 class UserLogin(BaseModel):
@@ -16,10 +23,20 @@ class UserLogin(BaseModel):
     password: str
 
 
+class UserProfileUpdate(BaseModel):
+    wake_time: Optional[str] = None
+    sleep_time: Optional[str] = None
+    work_style: Optional[str] = None
+    goal: Optional[str] = None
+    avoid: Optional[str] = None
+    extra: Optional[str] = None
+
+
 class UserOut(BaseModel):
     id: int
     email: str
     name: Optional[str]
+    profile: Optional[str]  # raw JSON string
     created_at: datetime
     model_config = {"from_attributes": True}
 
@@ -64,6 +81,11 @@ class ScheduleGenerateRequest(BaseModel):
     user_notes: Optional[str] = None
     day_type: Optional[str] = None
     mood: Optional[str] = None
+
+
+class ScheduleRefineRequest(BaseModel):
+    schedule_id: int
+    instruction: str
 
 
 class ScheduleOut(BaseModel):

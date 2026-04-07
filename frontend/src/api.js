@@ -22,13 +22,13 @@ async function request(url, options = {}) {
 }
 
 // Auth
-export const register = (email, password, name) =>
-  request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) })
-
+export const register = (payload) =>
+  request('/auth/register', { method: 'POST', body: JSON.stringify(payload) })
 export const login = (email, password) =>
   request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
-
 export const getMe = () => request('/auth/me')
+export const updateProfile = (data) =>
+  request('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) })
 
 // Tasks
 export const fetchTasks = () => request('/tasks/')
@@ -39,5 +39,7 @@ export const deleteTask = (id) => request(`/tasks/${id}`, { method: 'DELETE' })
 // Schedule
 export const generateSchedule = (data) =>
   request('/schedule/generate', { method: 'POST', body: JSON.stringify(data) })
+export const refineSchedule = (schedule_id, instruction) =>
+  request('/schedule/refine', { method: 'POST', body: JSON.stringify({ schedule_id, instruction }) })
 export const fetchScheduleByDate = (date) => request(`/schedule/by-date/${date}`)
 export const fetchLatestSchedule = () => request('/schedule/latest')

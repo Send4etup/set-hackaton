@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
 from models import Task, Schedule, Status, User
-from schemas import ScheduleOut, ScheduleGenerateRequest
-from services.ai_scheduler import generate_schedule
+from schemas import ScheduleOut, ScheduleGenerateRequest, ScheduleRefineRequest
+from services.ai_scheduler import generate_schedule, refine_schedule
 from services.auth_service import get_current_user
 
 router = APIRouter(prefix="/schedule", tags=["schedule"])
@@ -24,6 +24,7 @@ def generate(
         user_notes=body.user_notes,
         day_type=body.day_type,
         mood=body.mood,
+        user=user,
     )
 
     schedule = Schedule(content=content, user_id=user.id, target_date=body.target_date)
@@ -31,6 +32,32 @@ def generate(
     db.commit()
     db.refresh(schedule)
     return schedule
+
+
+@router.post("/refine", response_model=ScheduleOut)
+def refine(
+    body: ScheduleRefineRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    original = db.query(Schedule).filter(
+        Schedule.id == body.schedule_id, Schedule.user_id == user.id
+    ).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    new_content = refine_schedule(original.content, body.instruction)
+
+    # Save as new schedule entry with same target_date
+    updated = Schedule(
+        content=new_content,
+        user_id=user.id,
+        target_date=original.target_date,
+    )
+    db.add(updated)
+    db.commit()
+    db.refresh(updated)
+    return updated
 
 
 @router.get("/by-date/{date}", response_model=ScheduleOut)
