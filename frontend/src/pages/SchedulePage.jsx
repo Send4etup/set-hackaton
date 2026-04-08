@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   generateSchedule, fetchScheduleByDate, fetchTasks,
   updateTask, refineSchedule,
 } from '../api'
 
+/* ── helpers ──────────────────────────────────────────────── */
 function getNextDays(n = 7) {
   const days = []
   const now = new Date()
@@ -14,20 +15,85 @@ function getNextDays(n = 7) {
   }
   return days
 }
-
 function fmt(date) { return date.toISOString().split('T')[0] }
 function dayLabel(date, i) {
   if (i === 0) return 'Today'
   if (i === 1) return 'Tomorrow'
   return date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })
 }
-
-// Returns true if task's deadline date matches the selected date string YYYY-MM-DD
 function taskIsForDate(task, dateStr) {
   if (!task.deadline) return false
   return task.deadline.split('T')[0] === dateStr
 }
 
+/**
+ * Parse schedule HTML into structured blocks we can render as React.
+ * Works with both the old HTML format and the new _json_to_html output.
+ */
+function parseScheduleBlocks(html) {
+  if (!html) return null
+  const trimmed = html.trim()
+  if (!trimmed.startsWith('<')) return { type: 'text', content: trimmed }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(trimmed, 'text/html')
+
+    const title = doc.querySelector('.ai-sched-title')?.textContent || ''
+    const subtitle = doc.querySelector('.ai-sched-subtitle')?.textContent || ''
+    const blockEls = doc.querySelectorAll('.ai-sched-block')
+
+    const blocks = Array.from(blockEls).map(el => ({
+      taskId: el.getAttribute('data-task-id') || '',
+      prio: Array.from(el.classList).find(c => c.startsWith('ai-prio-')) || 'ai-prio-medium',
+      time: el.querySelector('.ai-sched-time')?.textContent || '',
+      name: el.querySelector('.ai-sched-name')?.textContent || '',
+      desc: el.querySelector('.ai-sched-desc')?.textContent || '',
+      badge: el.querySelector('.ai-sched-badge')?.textContent || '',
+    }))
+
+    return { type: 'structured', title, subtitle, blocks }
+  } catch {
+    return { type: 'text', content: trimmed }
+  }
+}
+
+/* ── ScheduleBlock component ──────────────────────────────── */
+function ScheduleBlock({ block, task, onToggle }) {
+  const [toggling, setToggling] = useState(false)
+  const isDone = task?.status === 'done'
+  const hasTask = !!block.taskId
+
+  async function handleToggle() {
+    if (!hasTask || toggling) return
+    setToggling(true)
+    try { await onToggle(block.taskId) }
+    finally { setToggling(false) }
+  }
+
+  return (
+    <div className={`ai-sched-block ${block.prio}${isDone ? ' sched-block-done' : ''}`}>
+      {hasTask && (
+        <button
+          className={`sched-check-btn${isDone ? ' done' : ''}`}
+          onClick={handleToggle}
+          disabled={toggling}
+          title={isDone ? 'Mark as pending' : 'Mark as done'}
+        >
+          {toggling ? <span className="spinner" style={{ width: 10, height: 10 }} /> : '✓'}
+        </button>
+      )}
+      <div className="ai-sched-time">{block.time}</div>
+      <div className="ai-sched-info">
+        <div className="ai-sched-name">{block.name}</div>
+        {block.desc && <div className="ai-sched-desc">{block.desc}</div>}
+      </div>
+      <span className="ai-sched-badge">{block.badge}</span>
+    </div>
+  )
+}
+
+/* ── main page ────────────────────────────────────────────── */
 export default function SchedulePage() {
   const days = getNextDays(7)
   const [selected, setSelected] = useState(fmt(days[0]))
@@ -42,69 +108,19 @@ export default function SchedulePage() {
   const [mood, setMood] = useState('')
   const [doneExpanded, setDoneExpanded] = useState(false)
   const [refineText, setRefineText] = useState('')
-  const scheduleRef = useRef(null)
 
   useEffect(() => {
     fetchTasks().then(setAllTasks).catch(() => {})
     loadForDate(fmt(days[0]))
   }, [])
 
-  // Inject checkboxes into AI schedule HTML blocks after render
-  useEffect(() => {
-    if (!schedule || !scheduleRef.current) return
-    const container = scheduleRef.current
-    const blocks = container.querySelectorAll('.ai-sched-block[data-task-id]')
-    blocks.forEach(block => {
-      const taskId = block.getAttribute('data-task-id')
-      if (!taskId) return
-      if (block.querySelector('.sched-check-btn')) return // already injected
-
-      const btn = document.createElement('button')
-      btn.className = 'sched-check-btn'
-      btn.setAttribute('data-tid', taskId)
-      btn.title = 'Mark as done'
-      btn.innerHTML = '✓'
-
-      const task = allTasks.find(t => String(t.id) === taskId)
-      if (task?.status === 'done') {
-        btn.classList.add('done')
-        block.classList.add('sched-block-done')
-      }
-
-      btn.addEventListener('click', () => handleCheckTask(taskId, btn, block))
-      block.insertBefore(btn, block.firstChild)
-    })
-  }, [schedule, allTasks])
-
-  async function handleCheckTask(taskId, btn, block) {
-    const task = allTasks.find(t => String(t.id) === taskId)
-    if (!task) return
-    const newStatus = task.status === 'done' ? 'pending' : 'done'
-    try {
-      const updated = await updateTask(task.id, { status: newStatus })
-      setAllTasks(ts => ts.map(t => t.id === updated.id ? updated : t))
-      if (newStatus === 'done') {
-        btn.classList.add('done')
-        block.classList.add('sched-block-done')
-      } else {
-        btn.classList.remove('done')
-        block.classList.remove('sched-block-done')
-      }
-    } catch { /* silent */ }
-  }
-
   async function loadForDate(date) {
     setLoadingDate(true)
     setSchedule(null)
     setError('')
-    try {
-      const s = await fetchScheduleByDate(date)
-      setSchedule(s)
-    } catch {
-      // 404 = no schedule for this date yet
-    } finally {
-      setLoadingDate(false)
-    }
+    try { setSchedule(await fetchScheduleByDate(date)) }
+    catch { /* 404 — no schedule yet */ }
+    finally { setLoadingDate(false) }
   }
 
   function handleDateChange(date) {
@@ -113,67 +129,56 @@ export default function SchedulePage() {
   }
 
   async function generate() {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
-      const s = await generateSchedule({
+      setSchedule(await generateSchedule({
         target_date: selected,
         user_notes: userNotes || null,
         day_type: dayType || null,
         mood: mood || null,
-      })
-      setSchedule(s)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+      }))
+    } catch (err) { setError(err.message) }
+    finally { setLoading(false) }
   }
 
   async function handleRefine(e) {
     e.preventDefault()
     if (!refineText.trim() || !schedule) return
-    setRefining(true)
-    setError('')
+    setRefining(true); setError('')
     try {
-      const s = await refineSchedule(schedule.id, refineText.trim())
-      setSchedule(s)
+      setSchedule(await refineSchedule(schedule.id, refineText.trim()))
       setRefineText('')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setRefining(false)
-    }
+    } catch (err) { setError(err.message) }
+    finally { setRefining(false) }
   }
 
-  // Tasks split by date and status
-  const tasksForDate = allTasks.filter(t => taskIsForDate(t, selected))
-  const activeTasks = tasksForDate.filter(t => t.status !== 'done')
-  const doneTasks = tasksForDate.filter(t => t.status === 'done')
-
-  function renderSchedule(content) {
-    if (!content) return null
-    const trimmed = content.trim()
-    if (!trimmed.startsWith('<')) {
-      return <pre className="schedule-content">{trimmed}</pre>
-    }
-    return (
-      <div
-        ref={scheduleRef}
-        className="ai-schedule-render"
-        dangerouslySetInnerHTML={{ __html: trimmed }}
-      />
-    )
-  }
-
-  async function toggleTask(task) {
-    const newStatus = task.status === 'done' ? 'pending' : 'done'
-    const updated = await updateTask(task.id, { status: newStatus })
+  async function handleToggleTask(taskId) {
+    const task = allTasks.find(t => String(t.id) === String(taskId))
+    if (!task) return
+    const updated = await updateTask(task.id, {
+      status: task.status === 'done' ? 'pending' : 'done',
+    })
     setAllTasks(ts => ts.map(t => t.id === updated.id ? updated : t))
   }
 
+  async function toggleTask(task) {
+    const updated = await updateTask(task.id, {
+      status: task.status === 'done' ? 'pending' : 'done',
+    })
+    setAllTasks(ts => ts.map(t => t.id === updated.id ? updated : t))
+  }
+
+  const tasksForDate = allTasks.filter(t => taskIsForDate(t, selected))
+  const activeTasks = tasksForDate.filter(t => t.status !== 'done')
+  const doneTasks   = tasksForDate.filter(t => t.status === 'done')
+
+  const parsed = schedule ? parseScheduleBlocks(schedule.content) : null
+
+  /* ── render ─────────────────────────────────────────────── */
   return (
     <div className="page-content">
+
+      {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
           <h1>AI Schedule</h1>
@@ -196,13 +201,10 @@ export default function SchedulePage() {
               key={fmt(d)}
               className={`day-chip${selected === fmt(d) ? ' active' : ''}`}
               onClick={() => handleDateChange(fmt(d))}
-            >
-              {dayLabel(d, i)}
-            </button>
+            >{dayLabel(d, i)}</button>
           ))}
           <input
-            type="date"
-            value={selected}
+            type="date" value={selected}
             onChange={e => handleDateChange(e.target.value)}
             style={{ width: 'auto', padding: '5px 10px', fontSize: '0.8rem' }}
           />
@@ -249,7 +251,7 @@ export default function SchedulePage() {
             <textarea
               value={userNotes}
               onChange={e => setUserNotes(e.target.value)}
-              placeholder="E.g. finish the report, go to the gym, call mom, have a relaxed evening..."
+              placeholder="E.g. finish the report, go to the gym, call mom..."
               rows={2}
             />
           </div>
@@ -267,16 +269,12 @@ export default function SchedulePage() {
             </span>
           </div>
 
-          {/* Active tasks */}
           {activeTasks.length > 0 && (
             <div style={{ marginBottom: doneTasks.length ? 10 : 0 }}>
               {activeTasks.map(t => (
                 <div key={t.id} className="task-item">
                   <div className={`priority-dot dot-${t.priority}`} />
-                  <div
-                    className="task-checkbox"
-                    onClick={() => toggleTask(t)}
-                  />
+                  <div className="task-checkbox" onClick={() => toggleTask(t)} />
                   <div className="task-body">
                     <div className="task-title">{t.title}</div>
                     {t.description && <div className="task-desc">{t.description}</div>}
@@ -292,17 +290,13 @@ export default function SchedulePage() {
 
           {activeTasks.length === 0 && doneTasks.length > 0 && (
             <div className="empty" style={{ padding: '12px 0' }}>
-              <div className="empty-title" style={{ color: 'var(--success)' }}>All tasks done for this day! 🎉</div>
+              <div className="empty-title" style={{ color: 'var(--success)' }}>All tasks done! 🎉</div>
             </div>
           )}
 
-          {/* Done tasks collapsible */}
           {doneTasks.length > 0 && (
             <div className="done-tasks-section">
-              <button
-                className="done-toggle"
-                onClick={() => setDoneExpanded(e => !e)}
-              >
+              <button className="done-toggle" onClick={() => setDoneExpanded(e => !e)}>
                 <span className="done-toggle-icon">{doneExpanded ? '▾' : '▸'}</span>
                 Completed ({doneTasks.length})
               </button>
@@ -311,10 +305,7 @@ export default function SchedulePage() {
                   {doneTasks.map(t => (
                     <div key={t.id} className="task-item done">
                       <div className={`priority-dot dot-${t.priority}`} style={{ opacity: 0.4 }} />
-                      <div
-                        className="task-checkbox checked"
-                        onClick={() => toggleTask(t)}
-                      />
+                      <div className="task-checkbox checked" onClick={() => toggleTask(t)} />
                       <div className="task-body">
                         <div className="task-title done">{t.title}</div>
                         <div className="task-meta">
@@ -347,9 +338,7 @@ export default function SchedulePage() {
         {(loading || loadingDate) && (
           <div className="empty">
             <div className="spinner" style={{ width: 32, height: 32, margin: '0 auto 12px' }} />
-            <div className="empty-title">
-              {loading ? 'AI is building your schedule...' : 'Loading...'}
-            </div>
+            <div className="empty-title">{loading ? 'AI is building your schedule...' : 'Loading...'}</div>
             {loading && <div className="empty-desc">This may take a few seconds</div>}
           </div>
         )}
@@ -362,16 +351,39 @@ export default function SchedulePage() {
           </div>
         )}
 
-        {!loading && !loadingDate && schedule && renderSchedule(schedule.content)}
+        {/* Structured render with React checkboxes */}
+        {!loading && !loadingDate && parsed?.type === 'structured' && (
+          <div className="ai-schedule">
+            <div className="ai-sched-header">
+              <div className="ai-sched-title">{parsed.title}</div>
+              <div className="ai-sched-subtitle">{parsed.subtitle}</div>
+            </div>
+            <div className="ai-sched-timeline">
+              {parsed.blocks.map((block, i) => (
+                <ScheduleBlock
+                  key={i}
+                  block={block}
+                  task={allTasks.find(t => String(t.id) === String(block.taskId))}
+                  onToggle={handleToggleTask}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Refine input */}
+        {/* Fallback for old plain-text schedules */}
+        {!loading && !loadingDate && parsed?.type === 'text' && (
+          <pre className="schedule-content">{parsed.content}</pre>
+        )}
+
+        {/* Refine bar */}
         {!loading && !loadingDate && schedule && (
           <form className="refine-bar" onSubmit={handleRefine}>
             <input
               className="refine-input"
               value={refineText}
               onChange={e => setRefineText(e.target.value)}
-              placeholder="Ask AI to adjust... e.g. 'Move gym to morning', 'Add 30min reading before bed'"
+              placeholder="Ask AI to adjust... e.g. 'Move gym to morning', 'Add reading before bed'"
               disabled={refining}
             />
             <button
