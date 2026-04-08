@@ -1,7 +1,10 @@
 import json
 import os
 from openai import OpenAI
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+MSK = timezone(timedelta(hours=3))
+def _now_msk(): return datetime.now(tz=MSK).replace(tzinfo=None)
 from typing import List, Optional
 from models import Task, User
 
@@ -39,9 +42,9 @@ def build_task_prompt(
         except ValueError:
             date_str = target_date
     else:
-        date_str = datetime.now().strftime("%A, %B %d, %Y")
+        date_str = _now_msk().strftime("%A, %B %d, %Y")
 
-    now = datetime.now().strftime("%H:%M")
+    now = _now_msk().strftime("%H:%M")
     profile = _parse_profile(user)
 
     lines = [f"Schedule date: {date_str} (current time: {now})."]
@@ -155,7 +158,7 @@ def generate_schedule(
         except ValueError:
             date_str = target_date
     else:
-        date_str = datetime.now().strftime("%A, %B %d, %Y")
+        date_str = _now_msk().strftime("%A, %B %d, %Y")
 
     prompt = build_task_prompt(
         tasks,

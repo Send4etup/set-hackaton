@@ -4,15 +4,23 @@ and creates in-app notifications for users.
 
 Runs every 5 minutes via APScheduler.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Task, Notification, NotificationType, Status
 
+# Moscow time UTC+3
+MSK = timezone(timedelta(hours=3))
+
+
+def now_msk() -> datetime:
+    """Current naive datetime in Moscow time (UTC+3)."""
+    return datetime.now(tz=MSK).replace(tzinfo=None)
+
 
 def _already_notified(db: Session, user_id: int, task_id: int, ntype: NotificationType) -> bool:
-    """Avoid duplicate notifications of the same type for the same task."""
-    cutoff = datetime.utcnow() - timedelta(hours=2)
+    """Avoid duplicate notifications of the same type for the same task within 2 hours."""
+    cutoff = now_msk() - timedelta(hours=2)
     return db.query(Notification).filter(
         Notification.user_id == user_id,
         Notification.task_id == task_id,
@@ -33,10 +41,10 @@ def _push(db: Session, user_id: int, task_id: int, ntype: NotificationType, msg:
 
 
 def check_reminders():
-    """Called by APScheduler every 5 minutes."""
+    """Called by APScheduler every 30 seconds."""
     db: Session = SessionLocal()
     try:
-        now = datetime.utcnow()
+        now = now_msk()
         soon = now + timedelta(minutes=60)
         today_end = now.replace(hour=23, minute=59, second=59)
 
@@ -53,18 +61,18 @@ def check_reminders():
             # 1. Overdue
             if dl < now:
                 _push(db, uid, task.id, NotificationType.overdue,
-                      f"⚠️ Overdue: «{task.title}» was due {dl.strftime('%d %b %H:%M')}")
+                      f"⚠️ Просрочено: «{task.title}» — было {dl.strftime('%d %b %H:%M')}")
 
             # 2. Due within 60 minutes
             elif dl <= soon:
                 mins = int((dl - now).total_seconds() / 60)
                 _push(db, uid, task.id, NotificationType.deadline_soon,
-                      f"⏰ Due in {mins} min: «{task.title}»")
+                      f"⏰ Через {mins} мин: «{task.title}»")
 
-            # 3. Due today — morning nudge (trigger once between 08:00–09:00 UTC)
+            # 3. Due today — morning nudge 08:00–09:00 MSK
             elif dl <= today_end and 8 <= now.hour < 9:
                 _push(db, uid, task.id, NotificationType.deadline_today,
-                      f"📅 Due today: «{task.title}» — deadline {dl.strftime('%H:%M')}")
+                      f"📅 Сегодня: «{task.title}» — дедлайн {dl.strftime('%H:%M')}")
 
         db.commit()
     except Exception as e:
