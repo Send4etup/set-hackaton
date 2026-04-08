@@ -26,7 +26,7 @@ export default function NotificationBell() {
   // Poll every 60 seconds
   useEffect(() => {
     load()
-    const id = setInterval(load, 60_000)
+    const id = setInterval(load, 30_000)
     return () => clearInterval(id)
   }, [])
 

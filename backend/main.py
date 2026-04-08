@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     # Start reminder scheduler
     from services.reminder_scheduler import check_reminders
     scheduler = BackgroundScheduler()
-    scheduler.add_job(check_reminders, "interval", minutes=5, id="reminders")
+    scheduler.add_job(check_reminders, "interval", seconds=30, id="reminders")
     scheduler.start()
     print("[scheduler] Reminder job started — runs every 5 minutes")
     yield
