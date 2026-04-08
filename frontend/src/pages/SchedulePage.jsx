@@ -61,26 +61,28 @@ function parseScheduleBlocks(html) {
 /* ── ScheduleBlock component ──────────────────────────────── */
 function ScheduleBlock({ block, task, onToggle }) {
   const [toggling, setToggling] = useState(false)
+  const isBreak = block.prio === 'ai-prio-break'
   const isDone = task?.status === 'done'
-  const hasTask = !!block.taskId
 
   async function handleToggle() {
-    if (!hasTask || toggling) return
+    if (isBreak || toggling) return
     setToggling(true)
-    try { await onToggle(block.taskId) }
+    try { await onToggle(task) }
     finally { setToggling(false) }
   }
 
   return (
     <div className={`ai-sched-block ${block.prio}${isDone ? ' sched-block-done' : ''}`}>
-      {hasTask && (
+      {!isBreak && (
         <button
           className={`sched-check-btn${isDone ? ' done' : ''}`}
           onClick={handleToggle}
           disabled={toggling}
-          title={isDone ? 'Mark as pending' : 'Mark as done'}
+          title={isDone ? 'Отметить как невыполненное' : 'Отметить как выполненное'}
         >
-          {toggling ? <span className="spinner" style={{ width: 10, height: 10 }} /> : '✓'}
+          {toggling
+            ? <span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
+            : '✓'}
         </button>
       )}
       <div className="ai-sched-time">{block.time}</div>
@@ -152,13 +154,23 @@ export default function SchedulePage() {
     finally { setRefining(false) }
   }
 
-  async function handleToggleTask(taskId) {
-    const task = allTasks.find(t => String(t.id) === String(taskId))
+  async function handleToggleTask(task) {
     if (!task) return
     const updated = await updateTask(task.id, {
       status: task.status === 'done' ? 'pending' : 'done',
     })
     setAllTasks(ts => ts.map(t => t.id === updated.id ? updated : t))
+  }
+
+  // Find task for a schedule block: by ID first, then by name match
+  function findTaskForBlock(block) {
+    if (block.taskId) {
+      const byId = allTasks.find(t => String(t.id) === String(block.taskId))
+      if (byId) return byId
+    }
+    // fallback: match by title (case-insensitive, trimmed)
+    const name = block.name.toLowerCase().trim()
+    return allTasks.find(t => t.title.toLowerCase().trim() === name) || null
   }
 
   async function toggleTask(task) {
@@ -363,7 +375,7 @@ export default function SchedulePage() {
                 <ScheduleBlock
                   key={i}
                   block={block}
-                  task={allTasks.find(t => String(t.id) === String(block.taskId))}
+                  task={findTaskForBlock(block)}
                   onToggle={handleToggleTask}
                 />
               ))}
