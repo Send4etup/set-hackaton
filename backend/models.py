@@ -57,3 +57,24 @@ class Schedule(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="schedules")
+
+
+class NotificationType(str, enum.Enum):
+    deadline_soon = "deadline_soon"   # task due in ≤60 min
+    deadline_today = "deadline_today" # task due today (morning reminder)
+    overdue = "overdue"               # task past deadline, still not done
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id"), nullable=True)
+    type: Mapped[NotificationType] = mapped_column(SAEnum(NotificationType), nullable=False)
+    message: Mapped[str] = mapped_column(String(512), nullable=False)
+    read: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship("User")
+    task: Mapped[Task] = relationship("Task")

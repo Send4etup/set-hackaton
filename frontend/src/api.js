@@ -36,6 +36,14 @@ export const createTask = (data) => request('/tasks/', { method: 'POST', body: J
 export const updateTask = (id, data) => request(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
 export const deleteTask = (id) => request(`/tasks/${id}`, { method: 'DELETE' })
 
+// Notifications
+export const fetchNotifications = () => request('/notifications/')
+export const fetchUnreadCount = () => request('/notifications/unread-count')
+export const markNotificationRead = (id) =>
+  request(`/notifications/${id}/read`, { method: 'PATCH' })
+export const markAllRead = () => request('/notifications/read-all', { method: 'PATCH' })
+export const clearNotifications = () => request('/notifications/clear', { method: 'DELETE' })
+
 // Schedule
 export const generateSchedule = (data) =>
   request('/schedule/generate', { method: 'POST', body: JSON.stringify(data) })

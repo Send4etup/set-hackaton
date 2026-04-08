@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import NotificationBell from './NotificationBell'
 
 export default function Header() {
   const { user, logout } = useAuth()
@@ -36,6 +37,7 @@ export default function Header() {
       </nav>
 
       <div className="header-actions">
+        <NotificationBell />
         <button className="theme-btn" onClick={toggle} title="Toggle theme">
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>

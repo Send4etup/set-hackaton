@@ -73,18 +73,7 @@ function ScheduleBlock({ block, task, onToggle }) {
 
   return (
     <div className={`ai-sched-block ${block.prio}${isDone ? ' sched-block-done' : ''}`}>
-      {!isBreak && (
-        <button
-          className={`sched-check-btn${isDone ? ' done' : ''}`}
-          onClick={handleToggle}
-          disabled={toggling}
-          title={isDone ? 'Отметить как невыполненное' : 'Отметить как выполненное'}
-        >
-          {toggling
-            ? <span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />
-            : '✓'}
-        </button>
-      )}
+
       <div className="ai-sched-time">{block.time}</div>
       <div className="ai-sched-info">
         <div className="ai-sched-name">{block.name}</div>
